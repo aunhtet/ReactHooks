@@ -1,4 +1,5 @@
 import React, {useReducer,useState, useEffect, useCallback} from 'react';
+//useCallback is the hook not to re render function
 
 import IngredientList from './IngredientList';
 import IngredientForm from './IngredientForm';
@@ -21,7 +22,6 @@ const ingredientReducer = (currentIngredients, action) => {
 const Ingredients = () => {
 
   const [ingredients, dispatch] = useReducer(ingredientReducer,[]);
-
   //const [ingredients, setIngredients] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState();
@@ -32,7 +32,7 @@ const Ingredients = () => {
     dispatch({type: 'SET', ingredients: filteredIngredients});
   },[])
 
-  const addIngredientHandler = (ingredient) => {
+  const addIngredientHandler = useCallback((ingredient) => {
     setIsLoading(true);
     fetch('https://react-hock-update.firebaseio.com/ingredients.json', {
       method: 'POST',
@@ -49,10 +49,9 @@ const Ingredients = () => {
     }).catch(error => {
       setError(error.message);
     });
-    
-  }
+  },[])
 
-  const removeIngredientHandler = (ingredientId) => {;
+  const removeIngredientHandler = useCallback((ingredientId) => {;
     setIsLoading(true);
     fetch(`https://react-hock-update.firebaseio.com/ingredients/${ingredientId}.json`, {
       method: 'DELETE'      
@@ -64,7 +63,7 @@ const Ingredients = () => {
     }).catch(error => {
       setError(error.message);
     })
-  }
+  },[])
 
   const clearError =()=>{
     setError(null);
