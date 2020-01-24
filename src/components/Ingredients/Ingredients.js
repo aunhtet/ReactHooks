@@ -1,10 +1,11 @@
-import React, {useReducer,useState, useEffect, useCallback} from 'react';
+import React, {useReducer, useCallback, useMemo, useEffect} from 'react';
 //useCallback is the hook not to re render function
 
 import IngredientList from './IngredientList';
 import IngredientForm from './IngredientForm';
 import Search from './Search';
 import ErrorModal from '../UI/ErrorModal';
+import useHttp from '../../hooks/http';
 
 const ingredientReducer = (currentIngredients, action) => {
   switch (action.type) {
@@ -19,66 +20,73 @@ const ingredientReducer = (currentIngredients, action) => {
   }
 }
 
+
+
 const Ingredients = () => {
 
   const [ingredients, dispatch] = useReducer(ingredientReducer,[]);
-  //const [ingredients, setIngredients] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState();
+
+  const {
+    isLoading, 
+    error, 
+    data, 
+    sendRequest, 
+    reqExtra, 
+    reqIdentifier,
+    clear} = useHttp();
+
+  useEffect(()=> {
+    if (!isLoading && !error && reqIdentifier === 'REMOVE_INGREDIENT'){
+      dispatch({type: 'DELETE', id: reqExtra})
+    } else if (!isLoading && !error && reqIdentifier === 'ADD_INGREDIENT') {
+      dispatch({
+        type: 'ADD',
+        ingredient: {id: data.name, ...reqExtra}
+      })
+    }
+  },[data,reqExtra, reqIdentifier,isLoading, error]);
+    
   
   //This filteringredients pass to search.js make sure to load data form server
   const filteredIngredientsHandler = useCallback((filteredIngredients) => {
-    //setIngredients(filteredIngredients);
     dispatch({type: 'SET', ingredients: filteredIngredients});
   },[])
 
+
   const addIngredientHandler = useCallback((ingredient) => {
-    setIsLoading(true);
-    fetch('https://react-hock-update.firebaseio.com/ingredients.json', {
-      method: 'POST',
-      body: JSON.stringify(ingredient),
-      headers: {'Content-Type': 'application/json'}
-    }).then (response => {
-      setIsLoading(false);
-      return response.json();
-    }).then (responseData => {
-      // setIngredients(prevIngredients => [
-      //   ...prevIngredients,
-      //   {id:responseData.name,...ingredient}]);
-      dispatch({type: 'ADD', ingredient: {id:responseData.name,...ingredient}})
-    }).catch(error => {
-      setError(error.message);
-    });
-  },[])
+    sendRequest('https://react-hock-update.firebaseio.com/ingredients.json',
+    'POST',
+    JSON.stringify(ingredient),
+    ingredient,
+    'ADD_INGREDIENT');
+  },[sendRequest])
 
   const removeIngredientHandler = useCallback((ingredientId) => {;
-    setIsLoading(true);
-    fetch(`https://react-hock-update.firebaseio.com/ingredients/${ingredientId}.json`, {
-      method: 'DELETE'      
-    }).then(response => {
-      setIsLoading(false);
-      // setIngredients(prevIngredients => 
-      //   prevIngredients.filter((ingredient)=> ingredient.id!== ingredientId));
-      dispatch({type: 'DELETE', id : ingredientId})      
-    }).catch(error => {
-      setError(error.message);
-    })
-  },[])
+    sendRequest(`https://react-hock-update.firebaseio.com/ingredients/${ingredientId}.json`,
+    'DELETE',
+    null,
+    ingredientId,
+    'REMOVE_INGREDIENT');
+  },[sendRequest])
 
-  const clearError =()=>{
-    setError(null);
-    setIsLoading(false);
-  }
+
+  const ingredientList = useMemo(()=>{
+    return (
+      <IngredientList 
+          ingredients={ingredients} 
+          onRemoveItem={removeIngredientHandler}/>
+    )
+  },[ingredients, removeIngredientHandler])
 
   return (
     <div className="App">
-      {error && <ErrorModal onClose={clearError}>{error}</ErrorModal>}
+      {error && <ErrorModal onClose={clear}>{error}</ErrorModal>}
       <IngredientForm 
         onAddIngredient={addIngredientHandler} 
         loading= {isLoading}/>
       <section>
         <Search onLoadIngredients={filteredIngredientsHandler}/>
-        <IngredientList ingredients={ingredients} onRemoveItem={removeIngredientHandler}/>
+        {ingredientList}
       </section>
     </div>
   );
